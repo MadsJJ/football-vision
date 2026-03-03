@@ -11,16 +11,23 @@ each structured like:
         labels/train/
 
 This script assigns whole games to train/val/test splits and writes:
-    <dataset_root>/football.yaml   # combined yaml for Ultralytics
-    <dataset_root>/train.txt
-    <dataset_root>/val.txt
-    <dataset_root>/test.txt        # omitted if no test games
+    <output_dir>/football.yaml   # combined yaml for Ultralytics
+    <output_dir>/train.txt
+    <output_dir>/val.txt
+    <output_dir>/test.txt        # omitted if no test games
+
+The dataset root is read-only (shared course data); all output goes to --output-dir.
 
 Usage:
-    python src/prepare_dataset.py --dataset-root /cluster/projects/vc/courses/TDT17/other/Football2025
-    python src/prepare_dataset.py --dataset-root data/  # local sample
+    # On IDUN (dataset is read-only):
+    python src/prepare_dataset.py \
+        --dataset-root /cluster/projects/vc/courses/TDT17/other/Football2025 \
+        --output-dir data/
 
-Split assignment (5 games): 3 train, 1 val, 1 test
+    # Local sample:
+    python src/prepare_dataset.py --dataset-root data/RBK-AALESUND --output-dir data/
+
+Split assignment (4 games): 2 train, 1 val, 1 test
 You can override with --train --val --test by game folder name.
 """
 
@@ -93,16 +100,19 @@ def read_class_names(game: Path) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Prepare Football2025 data.yaml")
-    parser.add_argument("--dataset-root", required=True, help="Path to Football2025 folder")
+    parser.add_argument("--dataset-root", required=True, help="Path to Football2025 folder (read-only is fine)")
+    parser.add_argument("--output-dir", default="data", help="Writable directory for output files (default: data/)")
     parser.add_argument("--train", nargs="*", help="Game folder names for train split")
     parser.add_argument("--val",   nargs="*", help="Game folder names for val split")
     parser.add_argument("--test",  nargs="*", help="Game folder names for test split")
-    parser.add_argument("--output", default=None, help="Output yaml filename (default: football.yaml in dataset root)")
     args = parser.parse_args()
 
     root = Path(args.dataset_root).resolve()
     if not root.exists():
         raise SystemExit(f"Dataset root not found: {root}")
+
+    out_dir = Path(args.output_dir).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     all_games = find_game_folders(root)
     print(f"Found {len(all_games)} game folder(s):")
@@ -130,21 +140,18 @@ def main():
         if not games:
             continue
         paths = collect_image_paths(games)
-        out_txt = root / f"{split}.txt"
+        out_txt = out_dir / f"{split}.txt"
         out_txt.write_text("\n".join(paths) + "\n")
         print(f"\n{split}.txt: {len(paths)} images → {out_txt}")
-        txt_keys[split] = f"{split}.txt"
+        txt_keys[split] = str(out_txt)
 
     # Read class names from the first game
     names = read_class_names(all_games[0])
     print(f"\nClasses: {names}")
 
-    # Write combined football.yaml
-    out_yaml = Path(args.output) if args.output else root / "football.yaml"
-    data_cfg = {
-        "path": str(root),
-        "names": names,
-    }
+    # Write combined football.yaml — paths in txt_keys are absolute so 'path' is not needed
+    out_yaml = out_dir / "football.yaml"
+    data_cfg = {"names": names}
     for split in ["train", "val", "test"]:
         if split in txt_keys:
             data_cfg[split] = txt_keys[split]

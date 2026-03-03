@@ -5,7 +5,7 @@ run:
   train_script: "train.py" # training entry script
 
 slurm:
-  account: "YOUR_SLURM_ACCOUNT" # TODO: replace with your NTNU Slurm account name
+  account: "mjengesv" # TODO: replace with your NTNU Slurm account name
   partition: "GPUQ" # queue/partition to use
   gpus: 1 # number of GPUs
   gpu_type: "a100" # requested GPU model
@@ -18,10 +18,11 @@ slurm:
 
 models:
   detection:
-    # Run src/prepare_dataset.py first to generate this file from the 5 game folders.
-    # python src/prepare_dataset.py --dataset-root /cluster/projects/vc/courses/TDT17/other/Football2025
-    dataset_path: "/cluster/projects/vc/courses/TDT17/other/Football2025/football.yaml"
-    # On Cybele: python src/prepare_dataset.py --dataset-root /datasets/tdt4265/Football2025
+    # Run src/prepare_dataset.py first to generate this file:
+    # python src/prepare_dataset.py \
+    #     --dataset-root /cluster/projects/vc/courses/TDT17/other/Football2025 \
+    #     --output-dir data/
+    dataset_path: "data/football.yaml"
     model: "rtdetr-l.pt" # RT-DETR large, pretrained on COCO
     epochs: 100 # training epochs
     batch: 8 # batch size (use -1 for auto, but RT-DETR may need explicit value)
