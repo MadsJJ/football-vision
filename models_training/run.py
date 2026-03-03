@@ -87,7 +87,7 @@ def submit_slurm(cfg):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["local", "slurm"])
-    parser.add_argument("--task", choices=["segmentation", "detection", "obb"])
+    parser.add_argument("--task", choices=["detection"])
     args = parser.parse_args()
 
     cfg = load_config()

@@ -1,60 +1,33 @@
 run:
   mode: "slurm" # "local" or "slurm"
-  task: "obb" # "segmentation", "detection", or "obb"
+  task: "detection"
   output_dir: "results" # where training outputs/logs go
   train_script: "train.py" # training entry script
 
 slurm:
-  account: "studiegrupper-vortex" # Slurm account name
+  account: "YOUR_SLURM_ACCOUNT" # TODO: replace with your NTNU Slurm account name
   partition: "GPUQ" # queue/partition to use
   gpus: 1 # number of GPUs
   gpu_type: "a100" # requested GPU model
   constraint: "gpu40g|gpu80g|gpu32g" # allowed GPU memory types
-  cpus: 10 # CPU cores allocated, by default model.train uses 8 cores
+  cpus: 10 # CPU cores allocated
   mem: "32G" # RAM allocated
-  time: "2:00:00" # job time limit
+  time: "4:00:00" # job time limit
   nodes: 1 # number of nodes
   ntasks: 1 # tasks per job
 
 models:
-  segmentation:
-    roboflow:
-      workspace_id: "hei-qp1ee" # Roboflow workspace ID
-      project_id: "pipe_seg_merge_jan_2026" # dataset project
-      version: 1 # dataset version
-      dataset_format: "yolo26" # export format
-    model: "yolo26m-seg.pt" # pretrained model file
-    epochs: 100 # training epochs
-    batch: -1 # auto batch size
-    imgsz: 640 # image resolution
-    patience: 30 # early-stop patience
-    requirements: "requirements.txt" # dependency file
-    export: ["onnx"] # export trained model (onnx, torchscript etc.)
-
   detection:
-    roboflow:
-      workspace_id: "hei-qp1ee" # Roboflow workspace
-      project_id: "simulatorvalve-4rcbu" # dataset project
-      version: 1 # dataset version
-      dataset_format: "yolo26" # export format
-    model: "yolo26l.pt" # pretrained model file
-    epochs: 200 # training epochs
-    batch: -1 # auto batch size
+    # Run src/prepare_dataset.py first to generate this file from the 5 game folders.
+    # python src/prepare_dataset.py --dataset-root /cluster/projects/vc/courses/TDT17/other/Football2025
+    dataset_path: "/cluster/projects/vc/courses/TDT17/other/Football2025/football.yaml"
+    # On Cybele: python src/prepare_dataset.py --dataset-root /datasets/tdt4265/Football2025
+    model: "rtdetr-l.pt" # RT-DETR large, pretrained on COCO
+    epochs: 100 # training epochs
+    batch: 8 # batch size (use -1 for auto, but RT-DETR may need explicit value)
     imgsz: 640 # image resolution
-    patience: 30 # early-stop patience
+    patience: 20 # early-stop patience
     requirements: "requirements.txt" # dependency file
-    export: ["onnx"] # export trained model (onnx, torchscript etc.)
-
-  obb:
-    roboflow:
-      workspace_id: "hei-qp1ee" # Roboflow workspace
-      project_id: "valve_obb_annotations-ejsa6" # dataset project
-      version: 2 # dataset version
-      dataset_format: "yolo26" # export format
-    model: "yolo26m-obb.pt" # pretrained model file
-    epochs: 200 # training epochs
-    batch: -1 # auto batch size
-    imgsz: 640 # image resolution
-    patience: 30 # early-stop patience
-    requirements: "requirements.txt" # dependency file
-    export: ["onnx"] # export trained model (onnx, torchscript etc.)
+    # Class weights to compensate for ball class imbalance [player, referee, ball]
+    cls_weights: [1.0, 2.0, 5.0]
+    export: ["onnx"] # export trained model after training

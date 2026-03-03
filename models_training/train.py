@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 from datetime import datetime
 from pathlib import Path
 
 import torch
 import yaml
-from dotenv import load_dotenv
-from roboflow import Roboflow
-from ultralytics import YOLO
-
-load_dotenv()
+from ultralytics import RTDETR
 
 
 def load_config(path):
@@ -27,56 +22,22 @@ def get_device():
     return "cpu"
 
 
-def download_dataset(rf_cfg):
-    base = Path("roboflow_data") / f"{rf_cfg['project_id']}-v{rf_cfg['version']}"
-    base.mkdir(parents=True, exist_ok=True)
-
-    if (base / "data.yaml").exists():
-        print(f"Dataset already downloaded at {base}")
-        return base / "data.yaml"
-
-    rf = Roboflow(api_key=os.environ["ROBOFLOW_API_KEY"])
-    proj = rf.workspace(rf_cfg["workspace_id"]).project(rf_cfg["project_id"])
-
-    dataset = proj.version(rf_cfg["version"]).download(
-        rf_cfg["dataset_format"],
-        location=str(base),
-        overwrite=True,
-    )
-
-    return Path(dataset.location) / "data.yaml"
-
-
-def fix_data_yaml(path):
-    """Fix dataset paths in Roboflow YOLO `data.yaml`.
-
-    Roboflow sometimes exports absolute/duplicated paths like
-    `roboflow_data/project-v1/train/images`, but YOLO expects paths
-    relative to `data.yaml`. This function rewrites them to
-    `train/images`, `valid/images`, etc.
-    """
-    txt = Path(path).read_text()
-
-    txt = txt.replace("roboflow_data/", "")
-    txt = txt.replace("../", "")
-
-    base = Path(path).parent.name
-    txt = txt.replace(f"{base}/", "")
-
-    Path(path).write_text(txt)
-
-
 def train(config_path):
     config = load_config(config_path)
 
     task = config["run"]["task"]
     model_cfg = config["models"][task]
-    rf_cfg = model_cfg["roboflow"]
 
-    data_yaml = download_dataset(rf_cfg)
-    fix_data_yaml(data_yaml)
+    data_yaml = model_cfg["dataset_path"]
+    if not Path(data_yaml).exists():
+        raise FileNotFoundError(
+            f"Dataset YAML not found: {data_yaml}\n"
+            "Check dataset_path in config.yaml. "
+            "On IDUN: /cluster/projects/vc/courses/TDT17/other/Football2025/data.yaml\n"
+            "On Cybele: /datasets/tdt4265/Football2025/data.yaml"
+        )
 
-    model = YOLO(model_cfg["model"])
+    model = RTDETR(model_cfg["model"])
     device = get_device()
 
     timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
@@ -91,6 +52,7 @@ def train(config_path):
         device=device,
         project=config["run"]["output_dir"],
         name=run_name,
+        **({"cls": model_cfg["cls_weights"]} if model_cfg.get("cls_weights") else {}),
     )
 
     model.val()
