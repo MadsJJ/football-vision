@@ -52,7 +52,6 @@ def train(config_path):
         device=device,
         project=config["run"]["output_dir"],
         name=run_name,
-        **({"cls": model_cfg["cls_weights"]} if model_cfg.get("cls_weights") else {}),
     )
 
     model.val()
