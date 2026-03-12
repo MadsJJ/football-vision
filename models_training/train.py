@@ -28,8 +28,10 @@ def train(config_path):
     task = config["run"]["task"]
     model_cfg = config["models"][task]
 
-    data_yaml = model_cfg["dataset_path"]
-    if not Path(data_yaml).exists():
+    data_yaml = Path(model_cfg["dataset_path"])
+    if not data_yaml.is_absolute():
+        data_yaml = (Path(config_path).parent / data_yaml).resolve()
+    if not data_yaml.exists():
         raise FileNotFoundError(
             f"Dataset YAML not found: {data_yaml}\n"
             "Check dataset_path in config.yaml. "
@@ -49,6 +51,12 @@ def train(config_path):
         imgsz=model_cfg["imgsz"],
         batch=model_cfg["batch"],
         patience=model_cfg["patience"],
+        cache=model_cfg.get("cache", False),
+        cos_lr=model_cfg.get("cos_lr", False),
+        cls=model_cfg.get("cls", 0.5),
+        copy_paste=model_cfg.get("copy_paste", 0.0),
+        close_mosaic=model_cfg.get("close_mosaic", 10),
+        classes=model_cfg.get("classes", None),
         device=device,
         project=config["run"]["output_dir"],
         name=run_name,
