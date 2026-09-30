@@ -6,15 +6,27 @@ Detecting and tracking players and the ball in Rosenborg BK match footage, using
 
 *RT-DETR detections with ByteTrack IDs on a match at Lerkendal. Each box shows track ID, class and confidence.*
 
+## How it works
+
+```
+video frame ──► RT-DETR-L (players + ball) ──► ByteTrack / BoT-SORT ──► tracks with persistent IDs
+```
+
+- **Detector:** RT-DETR-L, a real-time detection transformer pretrained on COCO and fine-tuned at 1280 px. It predicts boxes directly with no NMS step, which helps in crowded scenes where NMS can suppress overlapping players.
+- **Tracking:** tracking-by-detection with ByteTrack and BoT-SORT. The two gave near-identical HOTA, so the demo uses ByteTrack because it is simpler and faster.
+- **Data:** NTNU's Football2025 dataset of RBK home matches with player and ball boxes and CVAT track IDs, split by match so no frames leak between train, validation and test. The dataset cannot be redistributed, so this repository has no run guide. The code is here to show how the pipeline is built.
+- **Compute:** trained on one NVIDIA A100 on NTNU's IDUN cluster through Slurm, about 5.5 GPU-hours.
+
 ## Results
 
 **Detection** (validation set, RT-DETR-L at 1280 px):
 
-| Metric | Player | Ball | All classes |
-|---|---|---|---|
-| AP@50 | 0.866 | 0.020 | 0.443 |
-| AP@50:95 | | | 0.254 |
-| Recall | 0.91 | 0.07 | |
+| Metric | Player | Ball |
+|---|---|---|
+| AP@50 | 0.866 | 0.020 |
+| Recall | 0.91 | 0.07 |
+
+All classes: mAP@50 0.443, mAP@50:95 0.254.
 
 **Tracking** (RT-DETR + ByteTrack / BoT-SORT, evaluated with [TrackEval](https://github.com/JonathonLuiten/TrackEval)):
 
@@ -49,17 +61,6 @@ These findings shaped the training setup: input resolution was raised to 1280 px
 ## Improving ball detection
 
 Both problems come from asking one model to find about 25 large players and one tiny ball in the same pass. The natural next step is a **dedicated ball detector**: a separate model trained only on the ball, running alongside RT-DETR for players. A ball-only model has no class imbalance to fight, and its size and resolution can be tuned for small objects alone. Only if that is not enough would I move on to more advanced methods.
-
-## How it works
-
-```
-video frame ──► RT-DETR-L (players + ball) ──► ByteTrack / BoT-SORT ──► tracks with persistent IDs
-```
-
-- **Detector:** RT-DETR-L, a real-time detection transformer pretrained on COCO and fine-tuned at 1280 px. It predicts boxes directly with no NMS step, which helps in crowded scenes where NMS can suppress overlapping players.
-- **Tracking:** tracking-by-detection with ByteTrack and BoT-SORT. The two gave near-identical HOTA, so the demo uses ByteTrack because it is simpler and faster.
-- **Data:** NTNU's Football2025 dataset of RBK home matches with player and ball boxes and CVAT track IDs, split by match so no frames leak between train, validation and test. The dataset cannot be redistributed, so this repository has no run guide. The code is here to show how the pipeline is built.
-- **Compute:** trained on one NVIDIA A100 on NTNU's IDUN cluster through Slurm, about 5.5 GPU-hours.
 
 ## Project structure
 
