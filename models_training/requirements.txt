@@ -2,3 +2,5 @@ numpy>=1.26.4
 ultralytics>=8.3.0
 torch>=2.0.0
 pyyaml>=6.0
+lap>=0.5.12
+trackeval>=1.0.0

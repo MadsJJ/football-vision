@@ -1,0 +1,26 @@
+run:
+  mode: "local"   # "local" or "slurm"
+
+tracking:
+  model: "models/best.pt"
+  # video: "/cluster/projects/vc/courses/TDT17/other/Football2025/RBK-AALESUND/aalesund.mp4"
+  video: "data/RBK-AALESUND/aalesund.mp4"
+  tracker: "bytetrack.yaml"   # or "botsort.yaml"
+  conf: 0.3
+  output: "data/tracking/trackers/bytetrack"
+  name: "rbk-aalesund"
+  duration: 10               # seconds to process; null = full video
+  save_video: true           # save annotated output video to runs/track/
+
+slurm:
+  account: "share-ie-idi"
+  partition: "GPUQ"
+  gpus: 1
+  gpu_type: "a100"
+  constraint: "gpu40g|gpu80g"
+  cpus: 4
+  mem: "16G"
+  time: "01:00:00"
+  nodes: 1
+  ntasks: 1
+  requirements: "models_training/requirements.txt"
