@@ -73,6 +73,4 @@ src/
   track.py                runs detection + tracking on video, writes MOT-format output
   cvat_to_mot.py          converts CVAT XML ground truth to MOT format
   evaluate_tracking.py    computes HOTA / MOTA / MOTP with TrackEval
-notebooks/
-  eda.ipynb               exploratory analysis of the labels
 ```
