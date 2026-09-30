@@ -1,234 +1,39 @@
-# Models Training Pipeline
+# Training pipeline
 
-This folder contains scripts for training our different models (detection, segmentation, and OBB) locally or on Slurm.
+Fine-tunes RT-DETR on the Football2025 dataset, either locally or as a Slurm job on NTNU's IDUN cluster. All settings live in [`config.yaml`](config.yaml).
 
----
+## Usage
 
-# Quick Start
-
-## 1. Create a virtual environment
-
-Always do this once before running anything:
+Prepare the dataset first (from the repo root, see the main [README](../README.md#dataset)). Then, from this folder:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install pyyaml
+python run.py --mode local    # train on this machine
+python run.py --mode slurm    # submit a job to IDUN
 ```
 
-> The script will automatically install model-specific dependencies later.
+`run.py` reads `config.yaml`, installs `requirements.txt`, and either runs `train.py` directly or renders `job_template.slurm` and submits it with `sbatch`.
 
----
+## Configuration
 
-## 2. Set up your Roboflow API key
+| Key | Value | Why |
+|---|---|---|
+| `model` | `rtdetr-l.pt` | COCO-pretrained RT-DETR-L |
+| `imgsz` | `1280` | The ball is < 1% of frame width; at 640 px it is only a few pixels |
+| `cls` | `2.0` | Upweights classification loss to counter the 26:1 player/ball imbalance |
+| `epochs` / `patience` | `100` / `20` | Early stopping ended the final run at epoch 37 |
+| `cos_lr` | `true` | Cosine learning-rate schedule |
+| `close_mosaic` | `20` | Turns off mosaic augmentation for the last epochs |
+| `classes` | `[0, 1]` | Player and ball only; `event_labels` is excluded |
 
-Training automatically downloads datasets from Roboflow. You must provide a **ROBOFLOW_API_KEY**.
+Slurm resources are set under `slurm:`. RT-DETR-L at 1280 px needs a 40 GB+ A100 (`constraint: "gpu40g|gpu80g"`).
 
-Get your key from Roboflow -> Workspace -> Settings -> API Keys
-
-You can set it in two ways:
-
-### Option A — Environment variable
-```bash
-export ROBOFLOW_API_KEY=your_key_here
-```
-### Option B — `.env` file
-Create a file called `.env` in the folder and add:
-```bash
-ROBOFLOW_API_KEY=your_key_here
-```
-
-> **Do NOT commit .env to git.**
-
-## 3. Run training
-
-Run:
+## Monitoring Slurm jobs
 
 ```bash
-python3 run.py
-```
+export SLURM_JOB=<job id printed by run.py>
 
-The script will automatically:
-
-- Read `config.yaml`
-- Choose the selected task (detection / segmentation / obb)
-- Install the correct requirements file
-- Run `train.py`
-
-You do **not** need to manually install dependencies for each model.
-
----
-
-## 4. Change settings
-
-All settings are in:
-
-```bash
-config.yaml
-```
-
-You can change:
-
-### Run mode
-
-```yaml
-run:
-  mode: "local"   # or "slurm"
-```
-
-### Model type
-
-```yaml
-run:
-  task: "detection"   # segmentation / detection / obb
-```
-
-### Training parameters
-
-Each model has its own section:
-
-```yaml
-models:
-  detection:
-    model: "yolov8m.pt"
-    epochs: 200
-    imgsz: 640
-```
-
-### Slurm settings
-
-```yaml
-slurm:
-  partition: "GPUQ"
-  gpus: 1
-  time: "1:00:00"
-```
-
----
-
-# How It Works
-
-## run.py
-
-This script:
-
-1. Loads `config.yaml`
-2. Picks the selected task
-3. Installs dependencies from the task's requirements file
-4. Runs training locally or submits a Slurm job
-
-Example requirements mapping in config:
-
-```yaml
-models:
-  detection:
-    requirements: "yolo_object_detection/requirements.txt"
-```
-
-So switching task automatically switches dependencies.
-
----
-
-## Local mode
-
-```bash
-python3 run.py --mode local
-```
-
-- Installs dependencies with pip
-- Runs training directly
-
----
-
-## Slurm mode
-
-```bash
-python3 run.py --mode slurm
-```
-
-- Creates a job script
-- Installs dependencies on the cluster
-- Runs training on GPU nodes
-
-Make sure your Slurm account settings are correct in `config.yaml`.
-
----
-
-# Examples
-
-Run detection locally:
-
-```bash
-python3 run.py --task detection
-```
-
-Run segmentation on Slurm:
-
-```bash
-python3 run.py --mode slurm --task segmentation
-```
-
-# Checking SLurm Jobs
-
-After submitting a job like:
-
-```bash
-python3 run.py
-Submitted batch job 24063371
-```
-
-For each job, set the job ID (to debug it more easily):
-```bash
-export SLURM_JOB=
-```
-
-Now you can copy-paste the commands below.
-
-## Check if job is running or pending
-
-```bash
-squeue -u $USER
-```
-
-Check a specific job:
-
-```bash
-squeue -j $SLURM_JOB
-```
-
-## See detailed job info
-
-```bash
-scontrol show job $SLURM_JOB
-```
-
-Shows:
-- allocated GPU/CPU
-- node name
-- job state
-- memory request
-
-## Watch job log live
-Find log file:
-```bash
-ls *$SLURM_JOB*.out
-```
-
-Watch it update:
-```bash
-tail -f *$SLURM_JOB*.out
-```
-
-## Check finished job stats
-
-```bash
+squeue -u $USER                     # queued / running jobs
+tail -f *$SLURM_JOB*.out            # live log
 sacct -j $SLURM_JOB --format=JobID,State,Elapsed,MaxRSS,AllocGRES
-```
-
-Shows runtime, memory usage, GPU usage.
-
-## Cancel a job
-
-```bash
 scancel $SLURM_JOB
 ```
